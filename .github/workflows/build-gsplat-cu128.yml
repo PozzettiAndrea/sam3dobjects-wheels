@@ -53,7 +53,7 @@ jobs:
 
       - name: Clone and build gsplat
         run: |
-          git clone https://github.com/nerfstudio-project/gsplat.git
+          git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
           export TORCH_CUDA_ARCH_LIST="${{ env.TORCH_CUDA_ARCH_LIST }}"
           pip install -e . --no-build-isolation
@@ -113,7 +113,7 @@ jobs:
           python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')"
 
       - name: Clone gsplat
-        run: git clone https://github.com/nerfstudio-project/gsplat.git
+        run: git clone --recursive https://github.com/nerfstudio-project/gsplat.git
 
       - name: Build wheel
         shell: cmd
