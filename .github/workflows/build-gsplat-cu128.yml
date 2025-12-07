@@ -34,12 +34,16 @@ jobs:
           curl -sS https://bootstrap.pypa.io/get-pip.py | python${{ matrix.python }}
           update-alternatives --install /usr/bin/python python /usr/bin/python${{ matrix.python }} 1
           update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${{ matrix.python }} 1
+          # Clean apt cache to save disk space
+          apt-get clean
+          rm -rf /var/lib/apt/lists/*
 
       - name: Install PyTorch and build tools
         run: |
           python -m pip install --upgrade pip
-          pip install torch==${{ env.PYTORCH_VERSION }}+cu128 torchvision --index-url https://download.pytorch.org/whl/cu128
-          pip install wheel setuptools ninja
+          # Use --no-cache-dir to save ~4GB disk space (wheels are huge)
+          pip install --no-cache-dir torch==${{ env.PYTORCH_VERSION }}+cu128 torchvision --index-url https://download.pytorch.org/whl/cu128
+          pip install --no-cache-dir wheel setuptools ninja
 
       - name: Verify setup
         run: |
