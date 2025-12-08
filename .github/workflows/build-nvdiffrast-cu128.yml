@@ -62,16 +62,34 @@ jobs:
           echo "CUDA_HOME=$CUDA_HOME"
 
       - name: Clone and build nvdiffrast
-        env:
-          FORCE_CUDA: "1"
-          CUDA_HOME: /usr/local/cuda-12.8
-          CUDA_PATH: /usr/local/cuda-12.8
-          TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
           cd nvdiffrast
+          # Create wrapper that patches torch.utils.cpp_extension.CUDA_HOME
+          cat > run_setup.py << 'ENDSCRIPT'
+          import os
+          import sys
+
+          # Set env vars
+          os.environ["CUDA_HOME"] = "/usr/local/cuda-12.8"
+          os.environ["CUDA_PATH"] = "/usr/local/cuda-12.8"
+          os.environ["FORCE_CUDA"] = "1"
+          os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0;10.0;12.0"
+
+          # Patch torch.utils.cpp_extension.CUDA_HOME directly
+          # This is needed because CPU PyTorch sets CUDA_HOME=None unconditionally
+          import torch.utils.cpp_extension
+          torch.utils.cpp_extension.CUDA_HOME = "/usr/local/cuda-12.8"
+          print(f"Patched CUDA_HOME to: {torch.utils.cpp_extension.CUDA_HOME}")
+
+          # Now run setup.py
+          exec(compile(open("setup.py").read(), "setup.py", "exec"))
+          ENDSCRIPT
+          # Remove leading spaces from the Python script
+          sed -i 's/^          //' run_setup.py
+          cat run_setup.py
           pip install --no-build-isolation .
-          python setup.py bdist_wheel
+          python run_setup.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
