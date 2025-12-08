@@ -58,9 +58,8 @@ jobs:
         run: |
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          # Patch setup.py to set CUDA_HOME before torch import
-          sed -i '1s/^/import os\nos.environ["CUDA_HOME"] = "\/usr\/local\/cuda-12.8"\nos.environ["CUDA_PATH"] = "\/usr\/local\/cuda-12.8"\nos.environ["FORCE_CUDA"] = "1"\n/' setup.py
-          pip install . --no-build-isolation
+          # Use python setup.py directly to avoid pip subprocess issues
+          python setup.py install
           python setup.py bdist_wheel
           ls -la dist/
 
@@ -124,29 +123,16 @@ jobs:
       - name: Clone gsplat
         run: git clone --recursive https://github.com/nerfstudio-project/gsplat.git
 
-      - name: Patch setup.py with CUDA paths
-        shell: python
-        run: |
-          cuda_home = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
-          patch = f'''import os
-          os.environ["CUDA_HOME"] = r"{cuda_home}"
-          os.environ["CUDA_PATH"] = r"{cuda_home}"
-          os.environ["FORCE_CUDA"] = "1"
-          '''
-          with open("gsplat/setup.py", "r") as f:
-              content = f.read()
-          with open("gsplat/setup.py", "w") as f:
-              f.write(patch + content)
-
       - name: Build wheel
         shell: cmd
+        env:
+          CUDA_HOME: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8
+          CUDA_PATH: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8
+          FORCE_CUDA: "1"
+          TORCH_CUDA_ARCH_LIST: 7.5;8.6;8.9;9.0;12.0
         run: |
           cd gsplat
-          set "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
-          set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
-          set FORCE_CUDA=1
-          set TORCH_CUDA_ARCH_LIST=7.5;8.6;8.9;9.0;12.0
-          pip install . --no-build-isolation
+          python setup.py install
           python setup.py bdist_wheel
           dir dist
 
