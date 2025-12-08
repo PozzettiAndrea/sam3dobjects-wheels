@@ -50,15 +50,18 @@ jobs:
           echo "CUDA_HOME=$CUDA_HOME"
 
       - name: Clone and build gsplat
+        env:
+          CUDA_HOME: /usr/local/cuda-12.4
+          CUDA_PATH: /usr/local/cuda-12.4
+          FORCE_CUDA: "1"
+          TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
-          export CUDA_HOME=/usr/local/cuda-12.4
-          export CUDA_PATH=/usr/local/cuda-12.4
-          export FORCE_CUDA=1
-          export TORCH_CUDA_ARCH_LIST="${{ env.TORCH_CUDA_ARCH_LIST }}"
+          echo "Debug: CUDA_HOME=$CUDA_HOME"
+          python -c "import os; print('Python sees CUDA_HOME:', os.environ.get('CUDA_HOME'))"
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          pip install . --no-build-isolation
-          python setup.py bdist_wheel
+          CUDA_HOME=/usr/local/cuda-12.4 CUDA_PATH=/usr/local/cuda-12.4 FORCE_CUDA=1 pip install . --no-build-isolation
+          CUDA_HOME=/usr/local/cuda-12.4 CUDA_PATH=/usr/local/cuda-12.4 FORCE_CUDA=1 python setup.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
