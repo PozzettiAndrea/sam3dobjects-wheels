@@ -53,19 +53,30 @@ jobs:
         run: |
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          # Create a wrapper script that sets CUDA env vars before running setup.py
-          cat > setup_wrapper.py << 'EOF'
-          import os, sys
+          # Create wrapper that patches torch.utils.cpp_extension.CUDA_HOME
+          cat > run_setup.py << 'ENDSCRIPT'
+          import os
+          import sys
+
+          # Set env vars
           os.environ["CUDA_HOME"] = "/usr/local/cuda-12.8"
           os.environ["CUDA_PATH"] = "/usr/local/cuda-12.8"
           os.environ["FORCE_CUDA"] = "1"
           os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0;12.0"
-          print(f"WRAPPER: CUDA_HOME={os.environ['CUDA_HOME']}", file=sys.stderr)
+
+          # Patch torch.utils.cpp_extension.CUDA_HOME directly
+          # This is needed because CPU PyTorch sets CUDA_HOME=None unconditionally
+          import torch.utils.cpp_extension
+          torch.utils.cpp_extension.CUDA_HOME = "/usr/local/cuda-12.8"
+          print(f"Patched CUDA_HOME to: {torch.utils.cpp_extension.CUDA_HOME}")
+
+          # Now run setup.py
           exec(compile(open("setup.py").read(), "setup.py", "exec"))
-          EOF
-          sed -i 's/^          //' setup_wrapper.py  # Remove leading spaces
-          cat setup_wrapper.py
-          python setup_wrapper.py bdist_wheel
+          ENDSCRIPT
+          # Remove leading spaces from the Python script
+          sed -i 's/^          //' run_setup.py
+          cat run_setup.py
+          python run_setup.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
@@ -132,19 +143,30 @@ jobs:
         shell: bash
         run: |
           cd gsplat
-          # Create a wrapper script that sets CUDA env vars before running setup.py
-          cat > setup_wrapper.py << 'EOF'
-          import os, sys
+          # Create wrapper that patches torch.utils.cpp_extension.CUDA_HOME
+          cat > run_setup.py << 'ENDSCRIPT'
+          import os
+          import sys
+
+          # Set env vars
           os.environ["CUDA_HOME"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
           os.environ["CUDA_PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
           os.environ["FORCE_CUDA"] = "1"
           os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0;12.0"
-          print(f"WRAPPER: CUDA_HOME={os.environ['CUDA_HOME']}", file=sys.stderr)
+
+          # Patch torch.utils.cpp_extension.CUDA_HOME directly
+          # This is needed because CPU PyTorch sets CUDA_HOME=None unconditionally
+          import torch.utils.cpp_extension
+          torch.utils.cpp_extension.CUDA_HOME = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
+          print(f"Patched CUDA_HOME to: {torch.utils.cpp_extension.CUDA_HOME}")
+
+          # Now run setup.py
           exec(compile(open("setup.py").read(), "setup.py", "exec"))
-          EOF
-          sed -i 's/^          //' setup_wrapper.py  # Remove leading spaces
-          cat setup_wrapper.py
-          python setup_wrapper.py bdist_wheel
+          ENDSCRIPT
+          # Remove leading spaces from the Python script
+          sed -i 's/^          //' run_setup.py
+          cat run_setup.py
+          python run_setup.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
