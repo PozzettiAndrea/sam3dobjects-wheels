@@ -50,16 +50,12 @@ jobs:
           echo "CUDA_HOME=$CUDA_HOME"
 
       - name: Clone and build gsplat
-        env:
-          CUDA_HOME: /usr/local/cuda-12.8
-          CUDA_PATH: /usr/local/cuda-12.8
-          FORCE_CUDA: "1"
-          TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          # Use python setup.py directly to avoid pip subprocess issues
-          python setup.py install
+          # Inject CUDA paths at the very top of setup.py before any imports
+          sed -i '1s/^/import os\nos.environ["CUDA_HOME"] = "\/usr\/local\/cuda-12.8"\nos.environ["CUDA_PATH"] = "\/usr\/local\/cuda-12.8"\nos.environ["FORCE_CUDA"] = "1"\nos.environ["TORCH_CUDA_ARCH_LIST"] = "${{ env.TORCH_CUDA_ARCH_LIST }}"\n/' setup.py
+          head -10 setup.py  # Debug: show patched setup.py
           python setup.py bdist_wheel
           ls -la dist/
 
@@ -124,17 +120,23 @@ jobs:
         run: git clone --recursive https://github.com/nerfstudio-project/gsplat.git
 
       - name: Build wheel
-        shell: cmd
-        env:
-          CUDA_HOME: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8
-          CUDA_PATH: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8
-          FORCE_CUDA: "1"
-          TORCH_CUDA_ARCH_LIST: 7.5;8.6;8.9;9.0;12.0
+        shell: powershell
         run: |
           cd gsplat
-          python setup.py install
+          # Inject CUDA paths at the very top of setup.py before any imports
+          $cudaPath = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8"
+          $injection = @"
+import os
+os.environ["CUDA_HOME"] = r"$cudaPath"
+os.environ["CUDA_PATH"] = r"$cudaPath"
+os.environ["FORCE_CUDA"] = "1"
+os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0;12.0"
+"@
+          $content = Get-Content setup.py -Raw
+          $injection + "`n" + $content | Set-Content setup.py
+          Get-Content setup.py -Head 10  # Debug: show patched setup.py
           python setup.py bdist_wheel
-          dir dist
+          Get-ChildItem dist
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
