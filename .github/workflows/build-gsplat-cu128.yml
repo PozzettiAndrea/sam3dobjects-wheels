@@ -60,7 +60,7 @@ jobs:
           python -c "import os; print('Python sees CUDA_HOME:', os.environ.get('CUDA_HOME'))"
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          CUDA_HOME=/usr/local/cuda-12.8 CUDA_PATH=/usr/local/cuda-12.8 FORCE_CUDA=1 pip install . --no-build-isolation
+          pip install .
           CUDA_HOME=/usr/local/cuda-12.8 CUDA_PATH=/usr/local/cuda-12.8 FORCE_CUDA=1 python setup.py bdist_wheel
           ls -la dist/
 
