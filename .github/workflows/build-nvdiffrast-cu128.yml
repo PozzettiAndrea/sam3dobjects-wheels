@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.10', '3.11', '3.12']
+        python: ['3.10']
 
     steps:
       - uses: actions/checkout@v4
@@ -33,15 +33,7 @@ jobs:
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
-          sudo apt-get install -y \
-            cuda-nvcc-12-8 \
-            cuda-cudart-dev-12-8 \
-            libcublas-dev-12-8 \
-            libcusparse-dev-12-8 \
-            libcurand-dev-12-8 \
-            libcufft-dev-12-8 \
-            libcusolver-dev-12-8 \
-            cuda-nvtx-12-8
+          sudo apt-get install -y cuda-nvcc-12-8 cuda-cudart-dev-12-8
           echo "/usr/local/cuda-12.8/bin" >> $GITHUB_PATH
           echo "CUDA_HOME=/usr/local/cuda-12.8" >> $GITHUB_ENV
           echo "CUDA_PATH=/usr/local/cuda-12.8" >> $GITHUB_ENV
@@ -64,6 +56,8 @@ jobs:
       - name: Clone and build nvdiffrast
         env:
           FORCE_CUDA: "1"
+          CUDA_HOME: /usr/local/cuda-12.8
+          CUDA_PATH: /usr/local/cuda-12.8
           TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
@@ -84,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.10', '3.11', '3.12']
+        python: ['3.10']
 
     steps:
       - uses: actions/checkout@v4
@@ -105,7 +99,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Installing CUDA toolkit..."
-          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.8", "cudart_12.8", "cusparse_dev_12.8", "cublas_dev_12.8", "curand_dev_12.8", "cufft_dev_12.8", "cusolver_dev_12.8", "thrust_12.8", "nvtx_12.8" -Wait -NoNewWindow
+          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.8", "cudart_12.8" -Wait -NoNewWindow
           $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
           if (Test-Path "$cudaPath\bin\nvcc.exe") {
             Write-Host "CUDA installed successfully"

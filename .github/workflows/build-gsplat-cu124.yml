@@ -1,4 +1,4 @@
-name: Build gsplat CUDA 12.8 + PyTorch 2.8
+name: Build gsplat CUDA 12.4 + PyTorch 2.4
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 env:
-  CUDA_VERSION: '12.8'
-  PYTORCH_VERSION: '2.8.0'
-  TORCH_CUDA_ARCH_LIST: '7.5;8.6;8.9;9.0;12.0'
+  CUDA_VERSION: '12.4'
+  PYTORCH_VERSION: '2.4.1'
+  TORCH_CUDA_ARCH_LIST: '7.5;8.6;8.9;9.0'
 
 jobs:
   build-linux:
@@ -29,14 +29,14 @@ jobs:
 
       - name: Install CUDA toolkit
         run: |
-          # Install minimal CUDA 12.8 components from NVIDIA repos
+          # Install minimal CUDA 12.4 components from NVIDIA repos
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
-          sudo apt-get install -y cuda-nvcc-12-8 cuda-cudart-dev-12-8
-          echo "/usr/local/cuda-12.8/bin" >> $GITHUB_PATH
-          echo "CUDA_HOME=/usr/local/cuda-12.8" >> $GITHUB_ENV
-          echo "CUDA_PATH=/usr/local/cuda-12.8" >> $GITHUB_ENV
+          sudo apt-get install -y cuda-nvcc-12-4 cuda-cudart-dev-12-4
+          echo "/usr/local/cuda-12.4/bin" >> $GITHUB_PATH
+          echo "CUDA_HOME=/usr/local/cuda-12.4" >> $GITHUB_ENV
+          echo "CUDA_PATH=/usr/local/cuda-12.4" >> $GITHUB_ENV
 
       - name: Install CPU PyTorch and build tools
         run: |
@@ -52,6 +52,8 @@ jobs:
       - name: Clone and build gsplat
         env:
           FORCE_CUDA: "1"
+          CUDA_HOME: /usr/local/cuda-12.4
+          CUDA_PATH: /usr/local/cuda-12.4
           TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
@@ -63,7 +65,7 @@ jobs:
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: gsplat-linux-cu128-torch280-py${{ matrix.python }}
+          name: gsplat-linux-cu124-torch241-py${{ matrix.python }}
           path: gsplat/dist/*.whl
           retention-days: 90
 
@@ -85,16 +87,16 @@ jobs:
       - name: Download CUDA network installer
         shell: powershell
         run: |
-          $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.8.1/network_installers/cuda_12.8.1_windows_network.exe"
-          Write-Host "Downloading CUDA 12.8 network installer (~14MB)..."
+          $installerUrl = "https://developer.download.nvidia.com/compute/cuda/12.4.1/network_installers/cuda_12.4.1_windows_network.exe"
+          Write-Host "Downloading CUDA 12.4 network installer..."
           Invoke-WebRequest -Uri $installerUrl -OutFile "cuda_installer.exe" -UseBasicParsing
 
       - name: Install CUDA toolkit
         shell: powershell
         run: |
           Write-Host "Installing CUDA toolkit..."
-          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.8", "cudart_12.8" -Wait -NoNewWindow
-          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
+          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.4", "cudart_12.4" -Wait -NoNewWindow
+          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           if (Test-Path "$cudaPath\bin\nvcc.exe") {
             Write-Host "CUDA installed successfully"
           } else {
@@ -124,10 +126,10 @@ jobs:
         shell: cmd
         run: |
           cd gsplat
-          set "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
-          set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8"
+          set "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+          set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           set FORCE_CUDA=1
-          set TORCH_CUDA_ARCH_LIST=7.5;8.6;8.9;9.0;12.0
+          set TORCH_CUDA_ARCH_LIST=7.5;8.6;8.9;9.0
           pip install . --no-build-isolation
           python setup.py bdist_wheel
           dir dist
@@ -135,7 +137,7 @@ jobs:
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: gsplat-windows-cu128-torch280-py${{ matrix.python }}
+          name: gsplat-windows-cu124-torch241-py${{ matrix.python }}
           path: gsplat/dist/*.whl
           retention-days: 90
 
@@ -156,6 +158,6 @@ jobs:
       - name: Upload combined artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gsplat-all-cu128-torch280
+          name: gsplat-all-cu124-torch241
           path: wheels/*.whl
           retention-days: 90
