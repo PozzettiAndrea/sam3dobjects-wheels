@@ -43,9 +43,9 @@ jobs:
         run: |
           sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev
 
-      - name: Install CPU PyTorch and build tools
+      - name: Install CUDA PyTorch and build tools
         run: |
-          pip install --no-cache-dir torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install --no-cache-dir torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cu124
           pip install --no-cache-dir wheel setuptools ninja numpy
 
       - name: Verify setup
@@ -112,10 +112,10 @@ jobs:
           echo "CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "CUDA_PATH=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Install CPU PyTorch and build tools
+      - name: Install CUDA PyTorch and build tools
         shell: bash
         run: |
-          pip install torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cu124
           pip install wheel setuptools ninja numpy
 
       - name: Verify setup
