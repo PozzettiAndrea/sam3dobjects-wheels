@@ -120,23 +120,24 @@ jobs:
         run: git clone --recursive https://github.com/nerfstudio-project/gsplat.git
 
       - name: Build wheel
-        shell: powershell
+        shell: bash
         run: |
           cd gsplat
           # Inject CUDA paths at the very top of setup.py before any imports
-          $cudaPath = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8"
-          $injection = @"
-import os
-os.environ["CUDA_HOME"] = r"$cudaPath"
-os.environ["CUDA_PATH"] = r"$cudaPath"
-os.environ["FORCE_CUDA"] = "1"
-os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0;12.0"
-"@
-          $content = Get-Content setup.py -Raw
-          $injection + "`n" + $content | Set-Content setup.py
-          Get-Content setup.py -Head 10  # Debug: show patched setup.py
+          python -c "
+          import pathlib
+          p = pathlib.Path('setup.py')
+          injection = '''import os
+          os.environ[\"CUDA_HOME\"] = r\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\"
+          os.environ[\"CUDA_PATH\"] = r\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\"
+          os.environ[\"FORCE_CUDA\"] = \"1\"
+          os.environ[\"TORCH_CUDA_ARCH_LIST\"] = \"7.5;8.6;8.9;9.0;12.0\"
+          '''
+          p.write_text(injection + p.read_text())
+          "
+          head -10 setup.py  # Debug: show patched setup.py
           python setup.py bdist_wheel
-          Get-ChildItem dist
+          ls -la dist/
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
