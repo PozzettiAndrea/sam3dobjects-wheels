@@ -88,7 +88,6 @@ jobs:
           # Remove leading spaces from the Python script
           sed -i 's/^          //' run_setup.py
           cat run_setup.py
-          pip install --no-build-isolation .
           python run_setup.py bdist_wheel
           ls -la dist/
 
