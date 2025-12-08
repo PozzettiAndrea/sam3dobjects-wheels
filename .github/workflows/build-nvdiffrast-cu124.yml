@@ -8,6 +8,7 @@ on:
 
 env:
   CUDA_VERSION: '12.4'
+  CUDA_SHORT: '124'
   PYTORCH_VERSION: '2.4.1'
   TORCH_CUDA_ARCH_LIST: '7.5;8.6;8.9;9.0'
 
@@ -145,23 +146,58 @@ jobs:
           path: nvdiffrast/dist/*.whl
           retention-days: 90
 
-  collect:
+  commit-wheels:
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: wheels
+          path: downloaded-wheels
           pattern: nvdiffrast-*
           merge-multiple: true
 
-      - name: List all wheels
-        run: find wheels -name "*.whl" -type f | sort
+      - name: Rename wheels with CUDA version and organize
+        run: |
+          mkdir -p wheels/nvdiffrast
+          for whl in downloaded-wheels/*.whl; do
+            if [ -f "$whl" ]; then
+              # nvdiffrast-0.3.3-cp310-... → nvdiffrast-0.3.3+cu124-cp310-...
+              basename=$(basename "$whl")
+              newname=$(echo "$basename" | sed "s/-cp/+cu${{ env.CUDA_SHORT }}-cp/")
+              echo "Renaming: $basename -> $newname"
+              cp "$whl" "wheels/nvdiffrast/$newname"
+            fi
+          done
+          echo "Wheels in wheels/nvdiffrast/:"
+          ls -la wheels/nvdiffrast/
 
-      - name: Upload combined artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nvdiffrast-all-cu124-torch241
-          path: wheels/*.whl
-          retention-days: 90
+      - name: Generate PEP 503 index.html
+        run: |
+          cd wheels/nvdiffrast
+          # Create new index from all wheels in directory
+          echo '<!DOCTYPE html><html><body>' > index.html.new
+          for whl in *.whl; do
+            if [ -f "$whl" ]; then
+              sha256=$(sha256sum "$whl" | cut -d' ' -f1)
+              echo "<a href=\"$whl#sha256=$sha256\">$whl</a><br>" >> index.html.new
+            fi
+          done
+          echo '</body></html>' >> index.html.new
+          mv index.html.new index.html
+          echo "Generated index.html:"
+          cat index.html
+
+      - name: Commit and push wheels
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add wheels/
+          git commit -m "Update nvdiffrast wheels (CUDA ${{ env.CUDA_VERSION }})" || echo "No changes to commit"
+          git pull --rebase origin main || true
+          git push
