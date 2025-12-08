@@ -53,10 +53,19 @@ jobs:
         run: |
           git clone --recursive https://github.com/nerfstudio-project/gsplat.git
           cd gsplat
-          # Inject CUDA paths at the very top of setup.py before any imports
-          sed -i '1s/^/import os\nos.environ["CUDA_HOME"] = "\/usr\/local\/cuda-12.4"\nos.environ["CUDA_PATH"] = "\/usr\/local\/cuda-12.4"\nos.environ["FORCE_CUDA"] = "1"\nos.environ["TORCH_CUDA_ARCH_LIST"] = "${{ env.TORCH_CUDA_ARCH_LIST }}"\n/' setup.py
-          head -10 setup.py  # Debug: show patched setup.py
-          python setup.py bdist_wheel
+          # Create a wrapper script that sets CUDA env vars before running setup.py
+          cat > setup_wrapper.py << 'EOF'
+          import os, sys
+          os.environ["CUDA_HOME"] = "/usr/local/cuda-12.4"
+          os.environ["CUDA_PATH"] = "/usr/local/cuda-12.4"
+          os.environ["FORCE_CUDA"] = "1"
+          os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0"
+          print(f"WRAPPER: CUDA_HOME={os.environ['CUDA_HOME']}", file=sys.stderr)
+          exec(compile(open("setup.py").read(), "setup.py", "exec"))
+          EOF
+          sed -i 's/^          //' setup_wrapper.py  # Remove leading spaces
+          cat setup_wrapper.py
+          python setup_wrapper.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
@@ -123,20 +132,19 @@ jobs:
         shell: bash
         run: |
           cd gsplat
-          # Inject CUDA paths at the very top of setup.py before any imports
-          python -c "
-          import pathlib
-          p = pathlib.Path('setup.py')
-          injection = '''import os
-          os.environ[\"CUDA_HOME\"] = r\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.4\"
-          os.environ[\"CUDA_PATH\"] = r\"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.4\"
-          os.environ[\"FORCE_CUDA\"] = \"1\"
-          os.environ[\"TORCH_CUDA_ARCH_LIST\"] = \"7.5;8.6;8.9;9.0\"
-          '''
-          p.write_text(injection + p.read_text())
-          "
-          head -10 setup.py  # Debug: show patched setup.py
-          python setup.py bdist_wheel
+          # Create a wrapper script that sets CUDA env vars before running setup.py
+          cat > setup_wrapper.py << 'EOF'
+          import os, sys
+          os.environ["CUDA_HOME"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+          os.environ["CUDA_PATH"] = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+          os.environ["FORCE_CUDA"] = "1"
+          os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0"
+          print(f"WRAPPER: CUDA_HOME={os.environ['CUDA_HOME']}", file=sys.stderr)
+          exec(compile(open("setup.py").read(), "setup.py", "exec"))
+          EOF
+          sed -i 's/^          //' setup_wrapper.py  # Remove leading spaces
+          cat setup_wrapper.py
+          python setup_wrapper.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
