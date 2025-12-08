@@ -10,7 +10,7 @@ env:
   CUDA_VERSION: '12.4'
   CUDA_SHORT: '124'
   PYTORCH_VERSION: '2.4.1'
-  TORCH_CUDA_ARCH_LIST: '7.5;8.6;8.9;9.0'
+  TORCH_CUDA_ARCH_LIST: '6.1;7.0;7.5;8.0;8.6;8.9;9.0'
 
 jobs:
   build-linux:
@@ -79,9 +79,22 @@ jobs:
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
           cd nvdiffrast
+
+          # Copy source files into package directory (like old wheel does)
+          echo "Copying source files into package..."
+          cp -v csrc/torch/*.cpp csrc/torch/*.h csrc/torch/*.inl nvdiffrast/torch/ 2>/dev/null || true
+          cp -v csrc/tensorflow/*.cu nvdiffrast/tensorflow/ 2>/dev/null || true
+
+          # Add package_data to setup.py to include source files in wheel
+          sed -i "s/packages=\[/package_data={'nvdiffrast.torch': ['*.cpp', '*.h', '*.inl'], 'nvdiffrast.tensorflow': ['*.cu']},\n    packages=[/" setup.py
+
+          # Build with source included
           pip install --no-build-isolation .
           python setup.py bdist_wheel
           ls -la dist/
+
+          # Verify wheel contains source files
+          unzip -l dist/*.whl | grep -E '\.(cpp|h|inl|cu)$' | head -10 || echo "No source files found in wheel"
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
@@ -143,6 +156,17 @@ jobs:
       - name: Clone nvdiffrast
         run: git clone https://github.com/NVlabs/nvdiffrast.git
 
+      - name: Prepare source files and setup
+        shell: bash
+        run: |
+          cd nvdiffrast
+          # Copy source files into package directory (like old wheel does)
+          echo "Copying source files into package..."
+          cp -v csrc/torch/*.cpp csrc/torch/*.h csrc/torch/*.inl nvdiffrast/torch/ 2>/dev/null || true
+          cp -v csrc/tensorflow/*.cu nvdiffrast/tensorflow/ 2>/dev/null || true
+          # Add package_data to setup.py to include source files in wheel
+          sed -i "s/packages=\[/package_data={'nvdiffrast.torch': ['*.cpp', '*.h', '*.inl'], 'nvdiffrast.tensorflow': ['*.cu']},\n    packages=[/" setup.py
+
       - name: Build wheel
         shell: cmd
         run: |
@@ -150,7 +174,7 @@ jobs:
           set "CUDA_HOME=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           set FORCE_CUDA=1
-          set TORCH_CUDA_ARCH_LIST=7.5;8.6;8.9;9.0
+          set TORCH_CUDA_ARCH_LIST=6.1;7.0;7.5;8.0;8.6;8.9;9.0
           pip install --no-build-isolation .
           python setup.py bdist_wheel
           dir dist
