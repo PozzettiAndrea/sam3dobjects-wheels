@@ -23,6 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo apt-get clean
+          df -h
+
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v5
         with:
@@ -30,18 +39,11 @@ jobs:
 
       - name: Install CUDA toolkit
         run: |
-          # Install CUDA 12.4 components from NVIDIA repos
+          # Install minimal CUDA 12.4 components from NVIDIA repos
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
-          sudo apt-get install -y \
-            cuda-nvcc-12-4 \
-            cuda-cudart-dev-12-4 \
-            libcublas-dev-12-4 \
-            libcusparse-dev-12-4 \
-            libcurand-dev-12-4 \
-            libcufft-dev-12-4 \
-            libcusolver-dev-12-4
+          sudo apt-get install -y cuda-nvcc-12-4 cuda-cudart-dev-12-4
           echo "/usr/local/cuda-12.4/bin" >> $GITHUB_PATH
           echo "CUDA_HOME=/usr/local/cuda-12.4" >> $GITHUB_ENV
           echo "CUDA_PATH=/usr/local/cuda-12.4" >> $GITHUB_ENV
@@ -50,9 +52,9 @@ jobs:
         run: |
           sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev
 
-      - name: Install CPU PyTorch and build tools
+      - name: Install CUDA PyTorch and build tools
         run: |
-          pip install --no-cache-dir torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cpu
+          pip install --no-cache-dir torch==${{ env.PYTORCH_VERSION }} --index-url https://download.pytorch.org/whl/cu124
           pip install --no-cache-dir wheel setuptools ninja numpy
 
       - name: Verify setup
@@ -62,33 +64,16 @@ jobs:
           echo "CUDA_HOME=$CUDA_HOME"
 
       - name: Clone and build nvdiffrast
+        env:
+          FORCE_CUDA: "1"
+          CUDA_HOME: /usr/local/cuda-12.4
+          CUDA_PATH: /usr/local/cuda-12.4
+          TORCH_CUDA_ARCH_LIST: ${{ env.TORCH_CUDA_ARCH_LIST }}
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
           cd nvdiffrast
-          # Create wrapper that patches torch.utils.cpp_extension.CUDA_HOME
-          cat > run_setup.py << 'ENDSCRIPT'
-          import os
-          import sys
-
-          # Set env vars
-          os.environ["CUDA_HOME"] = "/usr/local/cuda-12.4"
-          os.environ["CUDA_PATH"] = "/usr/local/cuda-12.4"
-          os.environ["FORCE_CUDA"] = "1"
-          os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5;8.6;8.9;9.0"
-
-          # Patch torch.utils.cpp_extension.CUDA_HOME directly
-          # This is needed because CPU PyTorch sets CUDA_HOME=None unconditionally
-          import torch.utils.cpp_extension
-          torch.utils.cpp_extension.CUDA_HOME = "/usr/local/cuda-12.4"
-          print(f"Patched CUDA_HOME to: {torch.utils.cpp_extension.CUDA_HOME}")
-
-          # Now run setup.py
-          exec(compile(open("setup.py").read(), "setup.py", "exec"))
-          ENDSCRIPT
-          # Remove leading spaces from the Python script
-          sed -i 's/^          //' run_setup.py
-          cat run_setup.py
-          python run_setup.py bdist_wheel
+          pip install --no-build-isolation .
+          python setup.py bdist_wheel
           ls -la dist/
 
       - name: Upload wheel
@@ -124,7 +109,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Installing CUDA toolkit..."
-          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.4", "cudart_12.4" -Wait -NoNewWindow
+          Start-Process -FilePath "cuda_installer.exe" -ArgumentList "-s", "-n", "nvcc_12.4", "cudart_12.4", "cublas_12.4", "cublas_dev_12.4", "cusparse_12.4", "cusparse_dev_12.4", "curand_12.4", "curand_dev_12.4", "cufft_12.4", "cufft_dev_12.4", "cusolver_12.4", "cusolver_dev_12.4" -Wait -NoNewWindow
           $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           if (Test-Path "$cudaPath\bin\nvcc.exe") {
             Write-Host "CUDA installed successfully"
