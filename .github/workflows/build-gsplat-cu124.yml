@@ -177,7 +177,7 @@ jobs:
           path: gsplat/dist/*.whl
           retention-days: 90
 
-  commit-wheels:
+  release:
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
@@ -193,42 +193,83 @@ jobs:
           pattern: gsplat-*
           merge-multiple: true
 
-      - name: Rename wheels with CUDA version and organize
+      - name: Rename wheels with CUDA version
         run: |
-          mkdir -p wheels/gsplat
+          mkdir -p wheels
           for whl in downloaded-wheels/*.whl; do
             if [ -f "$whl" ]; then
               # gsplat-1.5.0-cp310-... → gsplat-1.5.0+cu124-cp310-...
               basename=$(basename "$whl")
               newname=$(echo "$basename" | sed "s/-cp/+cu${{ env.CUDA_SHORT }}-cp/")
               echo "Renaming: $basename -> $newname"
-              cp "$whl" "wheels/gsplat/$newname"
+              cp "$whl" "wheels/$newname"
             fi
           done
-          echo "Wheels in wheels/gsplat/:"
-          ls -la wheels/gsplat/
+          echo "Wheels to upload:"
+          ls -la wheels/
 
-      - name: Generate PEP 503 index.html
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: gsplat-cu${{ env.CUDA_SHORT }}
+          name: gsplat CUDA ${{ env.CUDA_VERSION }} + PyTorch ${{ env.PYTORCH_VERSION }}
+          body: |
+            Pre-built gsplat wheels for CUDA ${{ env.CUDA_VERSION }} + PyTorch ${{ env.PYTORCH_VERSION }}
+
+            **Install:**
+            ```bash
+            pip install gsplat==<version>+cu${{ env.CUDA_SHORT }} \
+              --extra-index-url https://pozzettiandrea.github.io/sam3dobjects-wheels/gsplat/
+            ```
+
+            **Supported:**
+            - Python: 3.10
+            - Platforms: Linux (x86_64), Windows (amd64)
+            - GPU: RTX 20/30/40 series
+          files: wheels/*.whl
+          fail_on_unmatched_files: true
+          make_latest: false
+
+  update-index:
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generate PEP 503 index.html for gsplat
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cd wheels/gsplat
-          # Create new index from all wheels in directory
-          echo '<!DOCTYPE html><html><body>' > index.html.new
-          for whl in *.whl; do
-            if [ -f "$whl" ]; then
-              sha256=$(sha256sum "$whl" | cut -d' ' -f1)
-              echo "<a href=\"$whl#sha256=$sha256\">$whl</a><br>" >> index.html.new
+          mkdir -p wheels/gsplat
+          REPO="${{ github.repository }}"
+
+          # Start fresh index.html
+          echo '<!DOCTYPE html><html><body>' > wheels/gsplat/index.html
+
+          # Add wheels from ALL gsplat releases (cu124 and cu128)
+          for tag in gsplat-cu124 gsplat-cu128; do
+            if gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null | grep -q '.whl'; then
+              gh release view "$tag" --json assets --jq '.assets[].name' | while read -r wheel; do
+                sha256=$(gh release download "$tag" --pattern "$wheel" --output - 2>/dev/null | sha256sum | cut -d' ' -f1)
+                echo "<a href=\"https://github.com/$REPO/releases/download/$tag/$wheel#sha256=$sha256\">$wheel</a><br>" >> wheels/gsplat/index.html
+              done
             fi
           done
-          echo '</body></html>' >> index.html.new
-          mv index.html.new index.html
-          echo "Generated index.html:"
-          cat index.html
 
-      - name: Commit and push wheels
+          echo '</body></html>' >> wheels/gsplat/index.html
+          echo "Generated index.html:"
+          cat wheels/gsplat/index.html
+
+      - name: Commit index.html
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add wheels/
-          git commit -m "Update gsplat wheels (CUDA ${{ env.CUDA_VERSION }})" || echo "No changes to commit"
+          git commit -m "Update gsplat index (CUDA ${{ env.CUDA_VERSION }})" || echo "No changes"
           git pull --rebase origin main || true
           git push
