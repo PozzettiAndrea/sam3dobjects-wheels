@@ -30,11 +30,18 @@ jobs:
 
       - name: Install CUDA toolkit
         run: |
-          # Install minimal CUDA 12.4 components from NVIDIA repos
+          # Install CUDA 12.4 components from NVIDIA repos
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
-          sudo apt-get install -y cuda-nvcc-12-4 cuda-cudart-dev-12-4
+          sudo apt-get install -y \
+            cuda-nvcc-12-4 \
+            cuda-cudart-dev-12-4 \
+            libcublas-dev-12-4 \
+            libcusparse-dev-12-4 \
+            libcurand-dev-12-4 \
+            libcufft-dev-12-4 \
+            libcusolver-dev-12-4
           echo "/usr/local/cuda-12.4/bin" >> $GITHUB_PATH
           echo "CUDA_HOME=/usr/local/cuda-12.4" >> $GITHUB_ENV
           echo "CUDA_PATH=/usr/local/cuda-12.4" >> $GITHUB_ENV
@@ -63,7 +70,7 @@ jobs:
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
           cd nvdiffrast
-          pip install .
+          pip install --no-build-isolation .
           python setup.py bdist_wheel
           ls -la dist/
 
