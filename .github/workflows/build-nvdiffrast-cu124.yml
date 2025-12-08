@@ -63,7 +63,7 @@ jobs:
         run: |
           git clone https://github.com/NVlabs/nvdiffrast.git
           cd nvdiffrast
-          pip install .
+          pip install --no-build-isolation .
           python setup.py bdist_wheel
           ls -la dist/
 
@@ -135,7 +135,7 @@ jobs:
           set "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
           set FORCE_CUDA=1
           set TORCH_CUDA_ARCH_LIST=7.5;8.6;8.9;9.0
-          pip install .
+          pip install --no-build-isolation .
           python setup.py bdist_wheel
           dir dist
 
